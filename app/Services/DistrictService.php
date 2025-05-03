@@ -63,6 +63,15 @@ class DistrictService
         ->values()->all();
     }
 
+    public static function getByAgent($agen)
+    {
+        $districts = self::search($agen->subdistrict_namex);
+        if($districts && count($districts)) {
+            return $districts[0];
+        }
+        return null;
+    }
+
     public static function seed()
     {
 

@@ -13,6 +13,9 @@ return [
     | a conventional file to locate the various service credentials.
     |
     */
+    'rajaongkir' => [
+        'key' => env('RAJAONGKIR_KEY', '2e1976940469084f825e532997bc6da0')
+    ],
 
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),

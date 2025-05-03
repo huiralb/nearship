@@ -1,4 +1,5 @@
 <template>
+    <Head title="Cek Ongkir" />
     <Card class="max-w-xl mx-auto mt-8">
         <CardHeader>
             <CardTitle>Cek Ongkir</CardTitle>
@@ -9,7 +10,7 @@
                     <h2 class="text-lg font-semibold mb-4">Data Paket</h2>
                     <div class="mb-4 relative">
                         <Label for="asal">Asal <span class="text-red-500">*</span></Label>
-                        <Input id="asal" v-model="form.asal" @input="onAsalInput"
+                        <Input id="asal" v-model="asal" @input="onAsalInput"
                             placeholder="Cijerrah, Bandung Kulon, Bandung, Kota, Jawa Barat" class="mt-1" required
                             autocomplete="off" />
                         <div v-if="showAsalDropdown && asalSuggestions.length"
@@ -20,10 +21,11 @@
                                 {{ suggestion.address }}
                             </div>
                         </div>
+                        <InputError :message="props.errors?.asal?.subdistrict_id" />
                     </div>
                     <div class="mb-4 relative">
                         <Label for="tujuan">Tujuan <span class="text-red-500">*</span></Label>
-                        <Input id="tujuan" v-model="form.tujuan" @input="onTujuanInput"
+                        <Input id="tujuan" v-model="tujuan" @input="onTujuanInput"
                             placeholder="Paminggir, Garut Kota, Garut, Jawa Barat" class="mt-1" required
                             autocomplete="off" />
                         <div v-if="showTujuanDropdown && tujuanSuggestions.length"
@@ -34,10 +36,12 @@
                                 {{ suggestion.address }}
                             </div>
                         </div>
+                        <InputError :message="props.errors?.tujuan?.subdistrict_id" />
                     </div>
                     <div class="mb-4 relative">
                         <Label for="agen">Pengiriman (Agen) <span class="text-red-500">*</span></Label>
-                        <Input id="agen" v-model="form.agen" placeholder="Agen" readonly class="mt-1" />
+                        <Input id="agen" v-model="agen" placeholder="Pilih Agen" readonly class="mt-1" />
+                        <InputError :message="props.errors?.agen?.subdistrict_id" />
                         <!-- Table Agen terdekat (nearby) -->
                         <div v-if="loadingAgents" class="mt-4 shadow text-center text-gray-500">Memuat agen terdekat...</div>
                         <div v-if="!loadingAgents" class="mt-0">
@@ -50,9 +54,9 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr v-for="(agen, idx) in nearbyAgents" :key="idx">
-                                            <td class="border px-3 py-2 font-semibold">{{ agen.name }}</td>
-                                            <td class="border px-3 py-2">{{ agen.address }}</td>
+                                        <tr v-for="(item, idx) in nearbyAgents" :key="idx" class="cursor-pointer hover:bg-blue-200" :class="{'bg-blue-200': item.address == agen}" @click="selectAgen(item)">
+                                            <td class="border px-3 py-2 font-semibold">{{ item.name }}</td>
+                                            <td class="border px-3 py-2">{{ item.address }}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -60,17 +64,20 @@
                             <div v-else class="min-h-[50px] flex flex-column items-center justify-center"><em class="text-sm text-gray-700  ">Tidak ada agen tersedia</em></div>
                         </div>
                     </div>
-                    <div class="mb-4 flex items-end gap-2">
-                        <div class="flex-1">
-                            <Label for="berat">Berat <span class="text-red-500">*</span></Label>
-                            <Input id="berat" v-model="form.berat" type="number" min="1" class="mt-1" required />
+                    <div class="mb-4">
+                        <div class="flex items-end gap-2">
+                            <div class="flex-1">
+                                <Label for="berat">Berat <span class="text-red-500">*</span></Label>
+                                <Input id="berat" v-model="form.berat" type="number" min="1" class="mt-1" required />
+                            </div>
+                            <select v-model="form.satuan" class="h-9 border rounded-md px-2">
+                                <option value="kg">kg</option>
+                                <option value="g">g</option>
+                            </select>
                         </div>
-                        <select v-model="form.satuan" class="h-9 border rounded-md px-2">
-                            <option value="kg">kg</option>
-                            <option value="g">g</option>
-                        </select>
+                        <InputError :message="props.errors.berat" />
                     </div>
-                    <div class="text-sm text-muted-foreground mb-2">Estimasi berat terhitung: 0 - 0 kg</div>
+
                 </div>
                 <Button class="w-full" type="submit">Lihat Estimasi Ongkir</Button>
             </form>
@@ -87,16 +94,22 @@ import CardContent from '@/components/ui/card/CardContent.vue'
 import Input from '@/components/ui/input/Input.vue'
 import Label from '@/components/ui/label/Label.vue'
 import Button from '@/components/ui/button/Button.vue'
-import { useForm } from '@inertiajs/vue3'
+import { useForm, Head } from '@inertiajs/vue3'
 import { ref, watch } from 'vue'
+import InputError from '@/components/InputError.vue'
+
+const props = defineProps(['errors'])
 
 const form = useForm({
-    asal: '',
-    tujuan: '',
+    asal: null,
+    tujuan: null,
+    agen: null,
     berat: 1,
     satuan: 'kg',
 })
-const tujuan = ref(null)
+const tujuan = ref('')
+const asal = ref('')
+const agen = ref('')
 
 const asalSuggestions = ref([])
 const showAsalDropdown = ref(false)
@@ -108,16 +121,17 @@ let tujuanFetchTimeout = null
 
 const nearbyAgents = ref([])
 const loadingAgents = ref(false)
+const loadingSubmit = ref(false)
 
 function onAsalInput() {
-    showAsalDropdown.value = !!form.asal
+    showAsalDropdown.value = !!asal.value
     if (asalFetchTimeout) clearTimeout(asalFetchTimeout)
-    if (!form.asal) {
+    if (!asal.value) {
         asalSuggestions.value = []
         return
     }
     asalFetchTimeout = setTimeout(async () => {
-        const res = await fetch(`/api/districts/search?q=${encodeURIComponent(form.asal)}`)
+        const res = await fetch(`/api/districts/search?q=${encodeURIComponent(asal.value)}`)
         if (res.ok) {
             asalSuggestions.value = await res.json()
         } else {
@@ -127,19 +141,20 @@ function onAsalInput() {
 }
 
 function selectAsalSuggestion(suggestion) {
-    form.asal = suggestion.address
+    asal.value = suggestion.address
+    form.asal = suggestion
     showAsalDropdown.value = false
 }
 
 function onTujuanInput() {
-    showTujuanDropdown.value = !!form.tujuan
+    showTujuanDropdown.value = !!tujuan.value
     if (tujuanFetchTimeout) clearTimeout(tujuanFetchTimeout)
-    if (!form.tujuan) {
+    if (!tujuan.value) {
         tujuanSuggestions.value = []
         return
     }
     tujuanFetchTimeout = setTimeout(async () => {
-        const res = await fetch(`/api/districts/search?q=${encodeURIComponent(form.tujuan)}`)
+        const res = await fetch(`/api/districts/search?q=${encodeURIComponent(tujuan.value)}`)
         if (res.ok) {
             tujuanSuggestions.value = await res.json()
             nearbyAgents.value = []
@@ -150,8 +165,8 @@ function onTujuanInput() {
 }
 
 async function selectTujuanSuggestion(suggestion) {
-    tujuan.value = suggestion
-    form.tujuan = suggestion.address
+    tujuan.value = suggestion.address
+    form.tujuan = suggestion
     showTujuanDropdown.value = false
     // Fetch nearby agents
     loadingAgents.value = true
@@ -165,26 +180,66 @@ async function selectTujuanSuggestion(suggestion) {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': token
             },
-            body: JSON.stringify({ tujuan: tujuan.value }),
+            body: JSON.stringify({ tujuan: form.tujuan }),
         })
         if (res.ok) {
             nearbyAgents.value = await res.json()
+            if(nearbyAgents.value.length == 1) {
+                form.agen = nearbyAgents.value[0]
+                agen.value = form.agen.address
+            }
         }
     } finally {
         loadingAgents.value = false
     }
 }
 
+async function selectAgen(item) {
+    agen.value = item.address
+    form.agen = item
+}
+
+function convertBerat(satuan) {
+    return satuan == 'g' ? form.berat / 1000 : form.berat * 1000;
+}
+
 // Hide dropdown on blur
-watch(() => form.asal, (val) => {
+watch(() => form, (val) => {
     if (!val) showAsalDropdown.value = false
 })
 watch(() => form.tujuan, (val) => {
     if (!val) showTujuanDropdown.value = false
 })
+watch(() => form.satuan, (val, old) => {
+    form.berat = convertBerat(old)
+})
+
+function transform(data) {
+    return {
+        originType: 'subdistrict',
+        origin: data.asal.subdistrict_id,
+        destinationType: 'subdistrict',
+        destination: data.agen.subdistrict_id,
+        weight: data.satuan == 'kg' ? data.satuan * 1000 : data.satuan,
+        courier: 'jne'
+    }
+}
 
 const submit = () => {
-    // Placeholder for form submission logic
-    // e.g., form.post(route('cek-ongkir'))
+    form.post('/cek-ongkir', {
+        onProgress() {
+            loadingSubmit.value = true
+        },
+        onSuccess(page) {
+            console.log('success', page)
+        },
+        onError(errors) {
+            console.error(errors)
+        },
+        onFinish() {
+            loadingSubmit.value = false
+        }
+    })
+
 }
 </script>

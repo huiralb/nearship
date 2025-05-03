@@ -2,12 +2,33 @@
 
 namespace App\Services;
 
+use App\Services\DistrictService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 class AgenService
 {
+    public static function getLocal()
+    {
+        return Cache::remember('agents-data', now()->addHours(12), function () {
+            $path = base_path('database/AGEN_kustom.json');
+            if (!file_exists($path)) {
+                return [];
+            }
+            $json = file_get_contents($path);
+            $items = collect(json_decode($json))->map(function($item) {
+                $district = DistrictService::getByAgent($item);
+                return array_merge((array)$item, (array)$district);
+            });
+            $data = $items->values()->all();
+            // Simpan ke storage lokal juga
+            Storage::disk('local')->put('agents.json', json_encode($data));
+
+            return $data;
+        });
+    }
+
     public static function get()
     {
         // Simpan cache selama 12 jam
@@ -29,7 +50,7 @@ class AgenService
 
     public static function search($district)
     {
-        $agents = self::get();
+        $agents = self::getLocal();
         return collect($agents)->filter(function ($agent) use ($district) {
             return $agent['subdistrict_name'] == $district['subdistrict_name'];
         })
