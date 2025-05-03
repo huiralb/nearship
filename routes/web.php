@@ -10,7 +10,7 @@ use App\Http\Controllers\VillageController;
 use App\Http\Controllers\DistrictController;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome');
+    return redirect('/cek-ongkir');
 })->name('home');
 
 Route::get('dashboard', function () {

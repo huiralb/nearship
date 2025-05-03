@@ -2,7 +2,7 @@
     <Head title="Cek Ongkir" />
     <Card class="max-w-xl mx-auto mt-8">
         <CardHeader>
-            <CardTitle>Cek Ongkir</CardTitle>
+            <h1 class="text-4xl font-bold">Cek Ongkir</h1>
         </CardHeader>
         <CardContent>
             <form @submit.prevent="submit">
@@ -79,14 +79,28 @@
                     </div>
 
                 </div>
-                <Button class="w-full" type="submit">Lihat Estimasi Ongkir</Button>
+                <div v-if="errorMessage" class="mb-4 p-4 bg-red-100 text-red-700 rounded-md">
+                    {{ errorMessage }}
+                </div>
+                <Button class="w-full" type="submit" :disabled="loadingSubmit">
+                    {{ loadingSubmit ? 'Memuat...' : 'Lihat Estimasi Ongkir' }}
+                </Button>
             </form>
 
+            <!-- Shipping Services Result -->
+            <div class="mt-8">
+                <h2 class="text-lg font-semibold mb-4">Hasil Pencarian</h2>
+                <template v-if="shippingServices && shippingServices.length">
+                    <ShippingServiceTabs :services="shippingServices" />
+                </template>
+            </div>
         </CardContent>
     </Card>
 </template>
 
 <script setup>
+import { ref, watch } from 'vue'
+import { Head, useForm } from '@inertiajs/vue3'
 import Card from '@/components/ui/card/Card.vue'
 import CardHeader from '@/components/ui/card/CardHeader.vue'
 import CardTitle from '@/components/ui/card/CardTitle.vue'
@@ -94,11 +108,15 @@ import CardContent from '@/components/ui/card/CardContent.vue'
 import Input from '@/components/ui/input/Input.vue'
 import Label from '@/components/ui/label/Label.vue'
 import Button from '@/components/ui/button/Button.vue'
-import { useForm, Head } from '@inertiajs/vue3'
-import { ref, watch } from 'vue'
 import InputError from '@/components/InputError.vue'
+import ShippingServiceTabs from '@/components/ShippingServiceTabs.vue'
 
-const props = defineProps(['errors'])
+const props = defineProps({
+    errors: {
+        type: Object,
+        default: () => ({})
+    }
+})
 
 const form = useForm({
     asal: null,
@@ -107,9 +125,13 @@ const form = useForm({
     berat: 1,
     satuan: 'kg',
 })
+
 const tujuan = ref('')
 const asal = ref('')
 const agen = ref('')
+const loadingSubmit = ref(false)
+const shippingServices = ref([])
+const rajaongkirResponse = ref(null)
 
 const asalSuggestions = ref([])
 const showAsalDropdown = ref(false)
@@ -121,7 +143,8 @@ let tujuanFetchTimeout = null
 
 const nearbyAgents = ref([])
 const loadingAgents = ref(false)
-const loadingSubmit = ref(false)
+
+const errorMessage = ref('')
 
 function onAsalInput() {
     showAsalDropdown.value = !!asal.value
@@ -151,6 +174,7 @@ function onTujuanInput() {
     if (tujuanFetchTimeout) clearTimeout(tujuanFetchTimeout)
     if (!tujuan.value) {
         tujuanSuggestions.value = []
+        agen.value = ''
         return
     }
     tujuanFetchTimeout = setTimeout(async () => {
@@ -160,6 +184,8 @@ function onTujuanInput() {
             nearbyAgents.value = []
         } else {
             tujuanSuggestions.value = []
+            agen.value = ''
+            form.agen = null
         }
     }, 300)
 }
@@ -172,8 +198,7 @@ async function selectTujuanSuggestion(suggestion) {
     loadingAgents.value = true
     nearbyAgents.value = []
     try {
-        // Send tujuan.value as POST body
-        const token = document.querySelector('meta[name=\"csrf-token\"]').getAttribute('content');
+        const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         const res = await fetch('/api/agen/nearby', {
             method: 'POST',
             headers: {
@@ -197,6 +222,8 @@ async function selectTujuanSuggestion(suggestion) {
 async function selectAgen(item) {
     agen.value = item.address
     form.agen = item
+    shippingServices.value = []
+    rajaongkirResponse.value = null
 }
 
 function convertBerat(satuan) {
@@ -226,12 +253,21 @@ function transform(data) {
 }
 
 const submit = () => {
+    shippingServices.value = []
+    rajaongkirResponse.value = null
+
     form.post('/cek-ongkir', {
         onProgress() {
             loadingSubmit.value = true
         },
         onSuccess(page) {
-            console.log('success', page)
+            if (page.props.success) {
+                shippingServices.value = page.props.data?.rajaongkir?.results[0].costs
+                rajaongkirResponse.value = page.props.data.rajaongkir
+            } else {
+                console.error('Error:', error)
+                errorMessage.value = error.message || 'Terjadi kesalahan saat mengambil data ongkos kirim.'
+            }
         },
         onError(errors) {
             console.error(errors)
