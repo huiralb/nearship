@@ -65,7 +65,7 @@ class DistrictService
 
     public static function getByAgent($agen)
     {
-        $districts = self::search($agen->subdistrict_namex);
+        $districts = self::search($agen->subdistrict_name);
         if($districts && count($districts)) {
             return $districts[0];
         }

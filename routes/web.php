@@ -20,7 +20,7 @@ Route::get('dashboard', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/cek-ongkir', function () {
         DistrictService::get();
-        AgenService::get();
+        AgenService::getLocal();
         return Inertia::render('CekOngkir', ['title' => 'Cek Ongkir']);
     })->name('cek-ongkir');
 

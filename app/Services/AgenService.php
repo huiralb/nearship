@@ -11,7 +11,7 @@ class AgenService
 {
     public static function getLocal()
     {
-        return Cache::remember('agents-data-1', now()->addHours(12), function () {
+        return Cache::remember('agents-data-2', now()->addHours(12), function () {
             $path = base_path('database/AGEN_kustom.json');
             if (!file_exists($path)) {
                 return [];
