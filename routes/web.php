@@ -1,10 +1,12 @@
 <?php
 
-use App\Http\Controllers\DistrictController;
-use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Http\Controllers\VillageController;
+use App\Services\AgenService;
 use App\Services\DistrictService;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AgenController;
+use App\Http\Controllers\VillageController;
+use App\Http\Controllers\DistrictController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome');
@@ -16,11 +18,13 @@ Route::get('dashboard', function () {
 
 Route::get('/cek-ongkir', function () {
     DistrictService::get();
+    AgenService::get();
     return Inertia::render('CekOngkir', ['title' => 'Cek Ongkir']);
 })->name('cek-ongkir');
 
 Route::get('/api/villages/search', [VillageController::class, 'search']);
 Route::get('/api/districts/search', [DistrictController::class, 'search']);
+Route::post('/api/agen/nearby', [AgenController::class, 'nearby']);
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
