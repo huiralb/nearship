@@ -27,7 +27,7 @@ class DistrictService
     public static function get()
     {
         // Simpan cache selama 12 jam
-        return Cache::remember('districts-data', now()->addHours(12), function () {
+        return Cache::remember('districts-data', now()->addYear(), function () {
             $url = 'https://raw.githubusercontent.com/huiralb/wilayah_elixir/refs/heads/master/data/subdistricts.json';
 
             $response = Http::get($url);
@@ -46,7 +46,7 @@ class DistrictService
     public static function search($keyword)
     {
         // Ambil dari cache, jika tidak ada ambil dari file lokal
-        $districts = Cache::remember('districts-data', now()->addHours(12), function () {
+        $districts = Cache::remember('districts-data', now()->addYear(), function () {
             if (Storage::disk('local')->exists('districts.json')) {
                 $json = Storage::disk('local')->get('districts.json');
                 return json_decode($json, true);

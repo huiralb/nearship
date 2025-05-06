@@ -11,7 +11,7 @@ class VilageService
     public static function getVillages()
     {
         // Simpan cache selama 12 jam
-        return Cache::remember('villages-data', now()->addHours(12), function () {
+        return Cache::remember('villages-data', now()->addYear(), function () {
             $url = 'https://raw.githubusercontent.com/yusufsyaifudin/wilayah-indonesia/refs/heads/master/data/list_of_area/villages.json';
 
             $response = Http::get($url);
@@ -30,7 +30,7 @@ class VilageService
     public static function search($keyword)
     {
         // Ambil dari cache, jika tidak ada ambil dari file lokal
-        $villages = Cache::remember('villages-data', now()->addHours(12), function () {
+        $villages = Cache::remember('villages-data', now()->addYear(), function () {
             if (Storage::disk('local')->exists('villages.json')) {
                 $json = Storage::disk('local')->get('villages.json');
                 return json_decode($json, true);

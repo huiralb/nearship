@@ -11,7 +11,7 @@ class AgenService
 {
     public static function getLocal()
     {
-        return Cache::remember('agents-data-2', now()->addHours(12), function () {
+        return Cache::remember('agents-data-2', now()->addYear(), function () {
             $path = base_path('database/AGEN_kustom.json');
             if (!file_exists($path)) {
                 return [];
@@ -32,7 +32,7 @@ class AgenService
     public static function get()
     {
         // Simpan cache selama 12 jam
-        return Cache::remember('agents-data', now()->addHours(12), function () {
+        return Cache::remember('agents-data', now()->addYear(), function () {
             $url = 'https://raw.githubusercontent.com/huiralb/wilayah_elixir/refs/heads/master/data/agents.json';
 
             $response = Http::get($url);
